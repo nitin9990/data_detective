@@ -19,7 +19,7 @@ def time_left(time_limit):
 
 # ── COPY PROTECTION ──────────────────────────────────────────────
 def _inject_security():
-    # CSS works fine via markdown
+    # CSS only — scripts in st.markdown don't execute, components.html is sandboxed
     st.markdown("""
 <style>
 * { -webkit-user-select:none; -moz-user-select:none; user-select:none; }
@@ -31,44 +31,20 @@ input, textarea,
 </style>
 """, unsafe_allow_html=True)
 
-    # JS must go through components.html — scripts in st.markdown do NOT execute
-    import streamlit.components.v1 as components
-    components.html("""
-<script>
-(function(){
-    var p = parent;  // parent = actual Streamlit page
+def _sync_tab_switches():
+    """
+    Heartbeat approach — no JS needed.
+    autorefresh fires every 1s when tab is active.
+    Browsers throttle hidden tabs → gap > 5s = tab was switched.
+    """
+    now = time.time()
+    last = st.session_state.get("last_ping", now)
+    gap  = now - last
 
-    // ── Copy protection on parent document ──────────────────────
-    function isInput(e){ var t=e.target.tagName; return t==='INPUT'||t==='TEXTAREA'; }
-    p.document.addEventListener('copy',  function(e){ if(!isInput(e)) e.preventDefault(); }, true);
-    p.document.addEventListener('cut',   function(e){ if(!isInput(e)) e.preventDefault(); }, true);
-    p.document.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
-    p.document.addEventListener('keydown', function(e){
-        if((e.ctrlKey||e.metaKey)&&['c','x','u','s'].includes(e.key.toLowerCase())){
-            if(!isInput(e)) e.preventDefault();
-        }
-    }, true);
+    if gap > 5 and st.session_state.get("phase") == "test":
+        st.session_state.tab_switches = st.session_state.get("tab_switches", 0) + 1
 
-    // ── Tab switch detection on parent ───────────────────────────
-    if(!p._tabInit){
-        p._tabInit  = true;
-        p._tabCount = parseInt(p.sessionStorage.getItem('tab_switches') || '0');
-
-        p.document.addEventListener('visibilitychange', function(){
-            if(p.document.hidden){
-                p._tabCount++;
-                p.sessionStorage.setItem('tab_switches', p._tabCount);
-                try {
-                    var url = new URL(p.location.href);
-                    url.searchParams.set('tab_switches', p._tabCount);
-                    p.history.replaceState({}, '', url.toString());
-                } catch(e){}
-            }
-        });
-    }
-})();
-</script>
-""", height=0)
+    st.session_state.last_ping = now
 
 # ── CODE EXECUTION ───────────────────────────────────────────────
 def run_code(preload, code, timeout=10):
@@ -111,15 +87,6 @@ def finish_attempt(attempt_id, score, max_score, time_limit, results, tab_switch
 def _init(defaults):
     for k, v in defaults.items():
         if k not in st.session_state: st.session_state[k] = v
-
-def _sync_tab_switches():
-    """Read tab switch count injected into URL by JS."""
-    try:
-        params = st.query_params
-        count  = int(params.get("tab_switches", 0))
-        st.session_state.tab_switches = max(st.session_state.get("tab_switches", 0), count)
-    except Exception:
-        pass
 
 # ════════════════════════════════════════════════════════════════
 # MAIN
