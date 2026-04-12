@@ -28,6 +28,7 @@ input, textarea, [data-testid="stTextArea"] textarea, [data-testid="stTextInput"
 </style>
 <script>
 (function(){
+    // ── Copy protection ──
     function isInput(e){ var t=e.target.tagName; return t==='INPUT'||t==='TEXTAREA'; }
     document.addEventListener('copy',  function(e){ if(!isInput(e)) e.preventDefault(); }, true);
     document.addEventListener('cut',   function(e){ if(!isInput(e)) e.preventDefault(); }, true);
@@ -37,6 +38,23 @@ input, textarea, [data-testid="stTextArea"] textarea, [data-testid="stTextInput"
             if(!isInput(e)) e.preventDefault();
         }
     }, true);
+
+    // ── Tab switch detection ──
+    if(!window._tabSwitchInit){
+        window._tabSwitchInit = true;
+        window._tabSwitches   = parseInt(sessionStorage.getItem('tab_switches') || '0');
+
+        document.addEventListener('visibilitychange', function(){
+            if(document.hidden){
+                window._tabSwitches += 1;
+                sessionStorage.setItem('tab_switches', window._tabSwitches);
+                // Write to a hidden input Streamlit can read via query param trick
+                var url = new URL(window.location.href);
+                url.searchParams.set('tab_switches', window._tabSwitches);
+                window.history.replaceState({}, '', url.toString());
+            }
+        });
+    }
 })();
 </script>
 """, unsafe_allow_html=True)
@@ -72,10 +90,10 @@ def start_attempt(email, level, test_id, attempt_num, max_score):
     res = _sb().table("attempts").insert({"email":email.lower().strip(),"level":level,"test_id":test_id,"attempt_num":attempt_num,"max_score":max_score}).execute()
     return res.data[0]["id"]
 
-def finish_attempt(attempt_id, score, max_score, time_limit, results):
+def finish_attempt(attempt_id, score, max_score, time_limit, results, tab_switches=0):
     taken = time_limit - time_left(time_limit)
     pct   = round(score / max_score * 100, 1) if max_score else 0
-    _sb().table("attempts").update({"submitted_at":datetime.now(timezone.utc).isoformat(),"score":score,"pct":pct,"passed":pct>=80,"valid":taken<=time_limit,"results":results}).eq("id", attempt_id).execute()
+    _sb().table("attempts").update({"submitted_at":datetime.now(timezone.utc).isoformat(),"score":score,"pct":pct,"passed":pct>=80,"valid":taken<=time_limit,"results":results,"tab_switches":tab_switches}).eq("id", attempt_id).execute()
     return pct, pct>=80, taken<=time_limit, taken
 
 # ── SESSION INIT ─────────────────────────────────────────────────
@@ -83,16 +101,27 @@ def _init(defaults):
     for k, v in defaults.items():
         if k not in st.session_state: st.session_state[k] = v
 
+def _sync_tab_switches():
+    """Read tab switch count injected into URL by JS."""
+    try:
+        params = st.query_params
+        count  = int(params.get("tab_switches", 0))
+        st.session_state.tab_switches = max(st.session_state.get("tab_switches", 0), count)
+    except Exception:
+        pass
+
 # ════════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════════
 def run_app(level, tests_map, time_limit, title):
     _init({"phase":"email","email":"","test_id":None,"q_idx":0,"score":0,"max_score":0,
            "results":[],"started_at":None,"attempt_id":None,"attempt_num":1,
-           "run_out":"","pct":0,"passed":False,"valid":True,"taken":0})
+           "run_out":"","pct":0,"passed":False,"valid":True,"taken":0,
+           "tab_switches":0})
 
     st.set_page_config(page_title=title, page_icon="📋", layout="centered")
     _inject_security()
+    _sync_tab_switches()
 
     p = st.session_state.phase
     if   p == "email": _email_phase(level, tests_map, time_limit, title)
@@ -203,7 +232,11 @@ def _record(q, val, q_list, time_limit):
         _do_submit(time_limit)
 
 def _do_submit(time_limit):
-    pct, passed, valid, taken = finish_attempt(st.session_state.attempt_id, st.session_state.score, st.session_state.max_score, time_limit, st.session_state.results)
+    pct, passed, valid, taken = finish_attempt(
+        st.session_state.attempt_id, st.session_state.score,
+        st.session_state.max_score, time_limit, st.session_state.results,
+        st.session_state.get("tab_switches", 0)
+    )
     st.session_state.update({"phase":"score","pct":pct,"passed":passed,"valid":valid,"taken":taken})
     st.rerun()
 
@@ -218,7 +251,12 @@ def _score_phase(title):
     c1.metric("Score", f"{score} / {max_score}")
     c2.metric("Percentage", f"{pct}%")
     c3.metric("Result", "PASS ✅" if passed else "FAIL ❌")
-    st.metric("Time Taken", fmt_time(taken))
+
+    m1, m2 = st.columns(2)
+    m1.metric("Time Taken", fmt_time(taken))
+    tsw = st.session_state.get("tab_switches", 0)
+    flag = "  ⚠️" if tsw > 3 else ""
+    m2.metric("Tab Switches", f"{tsw}{flag}")
 
     if not valid: st.error("⚠️  Submission flagged INVALID — time limit exceeded.")
     elif passed:  st.success("Congratulations! You passed.")
