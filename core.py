@@ -19,45 +19,56 @@ def time_left(time_limit):
 
 # ── COPY PROTECTION ──────────────────────────────────────────────
 def _inject_security():
+    # CSS works fine via markdown
     st.markdown("""
 <style>
-* { -webkit-user-select:none; -moz-user-select:none; -ms-user-select:none; user-select:none; }
-input, textarea, [data-testid="stTextArea"] textarea, [data-testid="stTextInput"] input {
+* { -webkit-user-select:none; -moz-user-select:none; user-select:none; }
+input, textarea,
+[data-testid="stTextArea"] textarea,
+[data-testid="stTextInput"] input {
     -webkit-user-select:text !important; user-select:text !important;
 }
 </style>
+""", unsafe_allow_html=True)
+
+    # JS must go through components.html — scripts in st.markdown do NOT execute
+    import streamlit.components.v1 as components
+    components.html("""
 <script>
 (function(){
-    // ── Copy protection ──
+    var p = parent;  // parent = actual Streamlit page
+
+    // ── Copy protection on parent document ──────────────────────
     function isInput(e){ var t=e.target.tagName; return t==='INPUT'||t==='TEXTAREA'; }
-    document.addEventListener('copy',  function(e){ if(!isInput(e)) e.preventDefault(); }, true);
-    document.addEventListener('cut',   function(e){ if(!isInput(e)) e.preventDefault(); }, true);
-    document.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
-    document.addEventListener('keydown', function(e){
+    p.document.addEventListener('copy',  function(e){ if(!isInput(e)) e.preventDefault(); }, true);
+    p.document.addEventListener('cut',   function(e){ if(!isInput(e)) e.preventDefault(); }, true);
+    p.document.addEventListener('contextmenu', function(e){ e.preventDefault(); }, true);
+    p.document.addEventListener('keydown', function(e){
         if((e.ctrlKey||e.metaKey)&&['c','x','u','s'].includes(e.key.toLowerCase())){
             if(!isInput(e)) e.preventDefault();
         }
     }, true);
 
-    // ── Tab switch detection ──
-    if(!window._tabSwitchInit){
-        window._tabSwitchInit = true;
-        window._tabSwitches   = parseInt(sessionStorage.getItem('tab_switches') || '0');
+    // ── Tab switch detection on parent ───────────────────────────
+    if(!p._tabInit){
+        p._tabInit  = true;
+        p._tabCount = parseInt(p.sessionStorage.getItem('tab_switches') || '0');
 
-        document.addEventListener('visibilitychange', function(){
-            if(document.hidden){
-                window._tabSwitches += 1;
-                sessionStorage.setItem('tab_switches', window._tabSwitches);
-                // Write to a hidden input Streamlit can read via query param trick
-                var url = new URL(window.location.href);
-                url.searchParams.set('tab_switches', window._tabSwitches);
-                window.history.replaceState({}, '', url.toString());
+        p.document.addEventListener('visibilitychange', function(){
+            if(p.document.hidden){
+                p._tabCount++;
+                p.sessionStorage.setItem('tab_switches', p._tabCount);
+                try {
+                    var url = new URL(p.location.href);
+                    url.searchParams.set('tab_switches', p._tabCount);
+                    p.history.replaceState({}, '', url.toString());
+                } catch(e){}
             }
         });
     }
 })();
 </script>
-""", unsafe_allow_html=True)
+""", height=0)
 
 # ── CODE EXECUTION ───────────────────────────────────────────────
 def run_code(preload, code, timeout=10):
