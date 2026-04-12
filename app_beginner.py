@@ -12,5 +12,5 @@ try:
     )
 except Exception as e:
     import traceback
-    st.error(f"Startup error: {e}")
+    st.error(f"Error: {e}")
     st.code(traceback.format_exc())
