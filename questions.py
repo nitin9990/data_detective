@@ -291,3 +291,12 @@ INTERMEDIATE_T5=[
 # ── MAPS ─────────────────────────────────────────────────────────
 BEGINNER_TESTS     = {1:BEGINNER_T1, 2:BEGINNER_T2, 3:BEGINNER_T3, 4:BEGINNER_T4, 5:BEGINNER_T5}
 INTERMEDIATE_TESTS = {1:INTERMEDIATE_T1, 2:INTERMEDIATE_T2, 3:INTERMEDIATE_T3, 4:INTERMEDIATE_T4, 5:INTERMEDIATE_T5}
+
+# ── DATASET MAP (shown to candidates during intermediate tests) ───
+INTERMEDIATE_DATASETS = {
+    1: _df1.copy(),
+    2: _df2.copy(),
+    3: _df3.copy(),
+    4: _df4.copy(),
+    5: _df5.copy(),
+}
