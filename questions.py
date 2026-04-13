@@ -181,11 +181,11 @@ _i1e9=_exec("print(round(df['income'].corr(df['credit_line_assigned']),2))",{**_
 _i1e10=_exec("print(len(df[(df['bureau_score']<600)&(df['existing_loans']>2)]))",{**_G1,"df":_df1.copy()})
 
 INTERMEDIATE_T1=[
-    {"id":1,"type":"mcq","marks":1,"text":"df['employment_type'].nunique()\n\nWhat does this return?","opts":["2","3","4","5"],"ah":h(str(_df1['employment_type'].nunique()))},
+    {"id":1,"type":"mcq","marks":1,"text":"How many unique employment types are there in the dataset?","opts":["2","3","4","5"],"ah":h(str(_df1['employment_type'].nunique()))},
     {"id":2,"type":"mcq","marks":2,"text":"Which city has the highest average credit_line_assigned?\n(Use the preloaded df)","opts":["Mumbai","Delhi","Bangalore","Chennai","Hyderabad"],"ah":h(_df1.groupby('city')['credit_line_assigned'].mean().idxmax())},
-    {"id":3,"type":"fill","marks":2,"text":"What is the output of:\n\ndf['bureau_score'].median()\n\nType the exact value (e.g. 675.0)","ah":h(str(_df1['bureau_score'].median()))},
+    {"id":3,"type":"fill","marks":2,"text":"What is the median bureau score of all customers?\n\nType the exact value (e.g. 675.0)","ah":h(str(_df1['bureau_score'].median()))},
     {"id":4,"type":"fill","marks":3,"text":"How many customers have exactly 0 existing loans?\n\ndf[df['existing_loans'] == 0].shape[0]\n\nType the integer.","ah":h(str(_df1[_df1['existing_loans']==0].shape[0]))},
-    {"id":5,"type":"fill","marks":3,"text":"What does this return?\n\ndf.groupby('employment_type')['credit_line_assigned'].mean().idxmax()\n\nType the exact string.","ah":h(_df1.groupby('employment_type')['credit_line_assigned'].mean().idxmax())},
+    {"id":5,"type":"fill","marks":3,"text":"Which employment type has the highest average credit line assigned?\n\nType the exact employment type name.","ah":h(_df1.groupby('employment_type')['credit_line_assigned'].mean().idxmax())},
     {"id":6,"type":"mcq","marks":4,"text":"After running:\ndf['income_band'] = pd.cut(df['income'], 3, labels=['L','M','H'])\n\nWhich income band has the most customers?","opts":["L","M","H"],"ah":h(str(_df1b['income_band'].value_counts().idxmax()))},
     {"id":7,"type":"code","marks":4,"text":"df is preloaded (200 rows).\n\nCut bureau_score into 5 equal-width bands labeled '1' to '5'.\nFind the band with the highest average credit_line_assigned.\nPrint only the label.","preload":DF1_SETUP,"exp":_i1e7},
     {"id":8,"type":"code","marks":4,"text":"df is preloaded (200 rows).\n\nFind the top 3 cities by median income.\nPrint as a Python list.","preload":DF1_SETUP,"exp":_i1e8},
@@ -204,11 +204,11 @@ _i2e9=_exec("df['sb']=pd.cut(df['bureau_score'],5,labels=['1','2','3','4','5'])\
 _i2e10=_exec("t1=df[df['city_tier']=='Tier1']\nprint(t1.groupby('employment_type')['credit_line_assigned'].mean().idxmax())",{**_G2,"df":_df2.copy()})
 
 INTERMEDIATE_T2=[
-    {"id":1,"type":"mcq","marks":1,"text":"df['city_tier'].nunique()\n\nWhat does this return?","opts":["2","3","4","5"],"ah":h(str(_df2['city_tier'].nunique()))},
+    {"id":1,"type":"mcq","marks":1,"text":"How many unique city tiers are there in the dataset?","opts":["2","3","4","5"],"ah":h(str(_df2['city_tier'].nunique()))},
     {"id":2,"type":"mcq","marks":2,"text":"Which city_tier has the highest average credit_line_assigned?\n(Use the preloaded df)","opts":["Tier1","Tier2","Tier3"],"ah":h(_df2.groupby('city_tier')['credit_line_assigned'].mean().idxmax())},
-    {"id":3,"type":"fill","marks":2,"text":"What is the output of:\n\nround(df['credit_utilization'].mean(), 2)\n\nType the exact value.","ah":h(str(round(_df2['credit_utilization'].mean(),2)))},
+    {"id":3,"type":"fill","marks":2,"text":"What is the average credit utilization across all customers?\n\nType rounded to 2 decimal places.","ah":h(str(round(_df2['credit_utilization'].mean(),2)))},
     {"id":4,"type":"fill","marks":3,"text":"How many customers have 5 or more credit cards?\n\ndf[df['num_credit_cards'] >= 5].shape[0]\n\nType the integer.","ah":h(str(_df2[_df2['num_credit_cards']>=5].shape[0]))},
-    {"id":5,"type":"fill","marks":3,"text":"What is the output of:\n\nround(df['annual_income'].corr(df['credit_line_assigned']), 2)\n\nType the exact value.","ah":h(str(round(_df2['annual_income'].corr(_df2['credit_line_assigned']),2)))},
+    {"id":5,"type":"fill","marks":3,"text":"What is the Pearson correlation between annual income and credit line assigned?\n\nType rounded to 2 decimal places.","ah":h(str(round(_df2['annual_income'].corr(_df2['credit_line_assigned']),2)))},
     {"id":6,"type":"mcq","marks":4,"text":"Which city_tier has the most customers in df?","opts":["Tier1","Tier2","Tier3"],"ah":h(_df2['city_tier'].value_counts().idxmax())},
     {"id":7,"type":"code","marks":4,"text":"df is preloaded (250 rows).\nColumns: employment_type, credit_line_assigned (and others).\n\nFind the employment_type with the highest average credit_line_assigned.\nPrint only the name.","preload":DF2_SETUP,"exp":_i2e7},
     {"id":8,"type":"code","marks":4,"text":"df is preloaded (250 rows).\n\nCreate 'util_bucket' using pd.cut on credit_utilization:\n    bins: [0, 0.3, 0.6, 1.0]   labels: ['Low', 'Medium', 'High']\n\nPrint the bucket name with the most customers.","preload":DF2_SETUP,"exp":_i2e8},
@@ -228,11 +228,11 @@ _i3e9=_exec("df['risk']=pd.cut(df['bureau_score'],bins=[0,550,700,1000],labels=[
 _i3e10=_exec("print(df.groupby('tenure_months')['dpd_90_flag'].mean().idxmax())",{**_G3,"df":_df3.copy()})
 
 INTERMEDIATE_T3=[
-    {"id":1,"type":"mcq","marks":1,"text":"df['dpd_90_flag'].value_counts().idxmax()\n\nWhat does this return? (0=no default, 1=defaulted)","opts":["0","1","2","None"],"ah":h(str(int(_df3['dpd_90_flag'].value_counts().idxmax())))},
+    {"id":1,"type":"mcq","marks":1,"text":"Which class is more common in the dataset — customers who defaulted (1) or those who did not (0)?","opts":["0","1","2","None"],"ah":h(str(int(_df3['dpd_90_flag'].value_counts().idxmax())))},
     {"id":2,"type":"mcq","marks":2,"text":"Which loan_type has the highest average loan_amount?\n(Use the preloaded df)","opts":["Personal","Auto","Home","Education"],"ah":h(_df3.groupby('loan_type')['loan_amount'].mean().idxmax())},
-    {"id":3,"type":"fill","marks":2,"text":"What is the overall 90+ DPD rate?\n\nround(df['dpd_90_flag'].mean(), 2)\n\nType the exact value.","ah":h(str(round(_df3['dpd_90_flag'].mean(),2)))},
-    {"id":4,"type":"fill","marks":3,"text":"What is the DPD rate for customers with bureau_score < 600?\n\nround(df[df['bureau_score'] < 600]['dpd_90_flag'].mean(), 2)\n\nType the exact value.","ah":h(str(round(_df3[_df3['bureau_score']<600]['dpd_90_flag'].mean(),2)))},
-    {"id":5,"type":"fill","marks":3,"text":"Which loan_type has the highest total count of defaults (sum of dpd_90_flag)?\n\ndf.groupby('loan_type')['dpd_90_flag'].sum().idxmax()\n\nType the exact string.","ah":h(_df3.groupby('loan_type')['dpd_90_flag'].sum().idxmax())},
+    {"id":3,"type":"fill","marks":2,"text":"What proportion of customers defaulted (90+ DPD)?\n\nType rounded to 2 decimal places (e.g. 0.25).","ah":h(str(round(_df3['dpd_90_flag'].mean(),2)))},
+    {"id":4,"type":"fill","marks":3,"text":"What is the default rate for customers with bureau score below 600?\n\nType rounded to 2 decimal places.","ah":h(str(round(_df3[_df3['bureau_score']<600]['dpd_90_flag'].mean(),2)))},
+    {"id":5,"type":"fill","marks":3,"text":"Which loan type has the highest total number of defaults?\n\nType the exact loan type name.","ah":h(_df3.groupby('loan_type')['dpd_90_flag'].sum().idxmax())},
     {"id":6,"type":"mcq","marks":4,"text":"Compare DPD rate for customers with foir > 0.6 vs the overall DPD rate.\nWhich statement is correct?","opts":["Higher than overall","Lower than overall","Same as overall"],"ah":h("Lower than overall" if _hfoir3<_overall3 else "Higher than overall")},
     {"id":7,"type":"code","marks":4,"text":"df is preloaded (300 rows).\nTarget: dpd_90_flag (1=defaulted, 0=not)\n\nFind the employment_type with the highest DPD rate.\nPrint only the name.","preload":DF3_SETUP,"exp":_i3e7},
     {"id":8,"type":"code","marks":4,"text":"df is preloaded (300 rows).\n\nCompute Pearson correlation between 'bureau_score' and 'dpd_90_flag'.\nPrint rounded to 2 decimal places.","preload":DF3_SETUP,"exp":_i3e8},
@@ -253,11 +253,11 @@ _i4e9=_exec("df['vb']=pd.cut(df['vintage_months'],bins=[0,6,12,25],labels=['Earl
 _i4e10=_exec("print(df.groupby('quarter').size().idxmax())",{**_G4,"df":_df4.copy()})
 
 INTERMEDIATE_T4=[
-    {"id":1,"type":"mcq","marks":1,"text":"df['product'].nunique()\n\nWhat does this return?","opts":["2","3","4","5"],"ah":h(str(_df4['product'].nunique()))},
+    {"id":1,"type":"mcq","marks":1,"text":"How many unique loan products are there in the dataset?","opts":["2","3","4","5"],"ah":h(str(_df4['product'].nunique()))},
     {"id":2,"type":"mcq","marks":2,"text":"Which state has the highest 90+ DPD rate?\n(Use the preloaded df)","opts":["MH","DL","KA","TN","UP"],"ah":h(_df4.groupby('state')['dpd_90_flag'].mean().idxmax())},
-    {"id":3,"type":"fill","marks":2,"text":"What is the overall 90+ DPD rate in this dataset?\n\nround(df['dpd_90_flag'].mean(), 2)\n\nType the exact value.","ah":h(str(round(_df4['dpd_90_flag'].mean(),2)))},
-    {"id":4,"type":"fill","marks":3,"text":"What is the DPD rate for early customers (vintage_months <= 6)?\n\nround(df[df['vintage_months'] <= 6]['dpd_90_flag'].mean(), 2)\n\nType the exact value.","ah":h(str(round(_df4[_df4['vintage_months']<=6]['dpd_90_flag'].mean(),2)))},
-    {"id":5,"type":"fill","marks":3,"text":"Which year had the highest average DPD rate?\n\ndf.groupby('year')['dpd_90_flag'].mean().idxmax()\n\nType the year (e.g. 2022).","ah":h(str(_df4.groupby('year')['dpd_90_flag'].mean().idxmax()))},
+    {"id":3,"type":"fill","marks":2,"text":"What is the overall default rate (90+ DPD) in this dataset?\n\nType rounded to 2 decimal places.","ah":h(str(round(_df4['dpd_90_flag'].mean(),2)))},
+    {"id":4,"type":"fill","marks":3,"text":"What is the default rate for customers with 6 or fewer vintage months?\n\nType rounded to 2 decimal places.","ah":h(str(round(_df4[_df4['vintage_months']<=6]['dpd_90_flag'].mean(),2)))},
+    {"id":5,"type":"fill","marks":3,"text":"Which year had the highest average default rate?\n\nType the year (e.g. 2022).","ah":h(str(_df4.groupby('year')['dpd_90_flag'].mean().idxmax()))},
     {"id":6,"type":"mcq","marks":4,"text":"Which product has the lowest average loan_amount?","opts":["PL","AL","HL"],"ah":h(_df4.groupby('product')['loan_amount'].mean().idxmin())},
     {"id":7,"type":"code","marks":4,"text":"df is preloaded (250 rows).\ndf has: state, dpd_90_flag, year, quarter (and others).\n\nFind the state with the LOWEST 90+ DPD rate.\nPrint only the state code.","preload":DF4_SETUP,"exp":_i4e7},
     {"id":8,"type":"code","marks":4,"text":"df is preloaded (250 rows).\n\nCompute Pearson correlation between 'vintage_months' and 'dpd_90_flag'.\nPrint rounded to 2 decimal places.","preload":DF4_SETUP,"exp":_i4e8},
@@ -276,11 +276,11 @@ _i5e9=_exec("print(round(df['spend_amount'].corr(df['transaction_count']),2))",{
 _i5e10=_exec("cats=df.groupby('customer_id')['category'].nunique()\nprint(len(cats[cats>=4]))",{**_G5,"df":_df5.copy()})
 
 INTERMEDIATE_T5=[
-    {"id":1,"type":"mcq","marks":1,"text":"df['category'].nunique()\n\nWhat does this return?","opts":["4","5","6","7"],"ah":h(str(_df5['category'].nunique()))},
+    {"id":1,"type":"mcq","marks":1,"text":"How many unique spending categories are there in the dataset?","opts":["4","5","6","7"],"ah":h(str(_df5['category'].nunique()))},
     {"id":2,"type":"mcq","marks":2,"text":"Which category has the highest total spend_amount?\n(Use the preloaded df)","opts":["Shopping","Food","Travel","Fuel","Entertainment","Healthcare"],"ah":h(_df5.groupby('category')['spend_amount'].sum().idxmax())},
-    {"id":3,"type":"fill","marks":2,"text":"What is the output of:\n\nround(df['spend_amount'].mean(), 0)\n\nType the exact value (e.g. 25000.0).","ah":h(str(round(_df5['spend_amount'].mean(),0)))},
-    {"id":4,"type":"fill","marks":3,"text":"How many unique customers are in this dataset?\n\ndf['customer_id'].nunique()\n\nType the integer.","ah":h(str(_df5['customer_id'].nunique()))},
-    {"id":5,"type":"fill","marks":3,"text":"Which city has the highest average transaction_count?\n\ndf.groupby('city')['transaction_count'].mean().idxmax()\n\nType the exact city name.","ah":h(_df5.groupby('city')['transaction_count'].mean().idxmax())},
+    {"id":3,"type":"fill","marks":2,"text":"What is the average transaction spend amount across all records?\n\nType rounded to 0 decimal places (e.g. 25000.0).","ah":h(str(round(_df5['spend_amount'].mean(),0)))},
+    {"id":4,"type":"fill","marks":3,"text":"How many unique customers are there in the dataset?\n\nType the integer.","ah":h(str(_df5['customer_id'].nunique()))},
+    {"id":5,"type":"fill","marks":3,"text":"Which city has the highest average number of transactions per record?\n\nType the exact city name.","ah":h(_df5.groupby('city')['transaction_count'].mean().idxmax())},
     {"id":6,"type":"mcq","marks":4,"text":"Which category has the highest average spend_amount?","opts":["Shopping","Food","Travel","Fuel","Entertainment","Healthcare"],"ah":h(_df5.groupby('category')['spend_amount'].mean().idxmax())},
     {"id":7,"type":"code","marks":4,"text":"df is preloaded (500 rows).\nColumn 'month' is a datetime.\n\nFind the month with the highest total spend_amount.\nFormat output as: YYYY-MM  (e.g. 2023-03)\nPrint only the month string.","preload":DF5_SETUP,"exp":_i5e7},
     {"id":8,"type":"code","marks":4,"text":"df is preloaded (500 rows).\n\nCompute average total spend per customer\n(sum each customer's spend first, then take the mean).\nPrint rounded to 2 decimal places.","preload":DF5_SETUP,"exp":_i5e8},
