@@ -89,7 +89,7 @@ def run_app(level, tests_map, time_limit, title):
     _init({"phase":"email","email":"","test_id":None,"q_idx":0,"score":0,"max_score":0,
            "results":[],"started_at":None,"attempt_id":None,"attempt_num":1,
            "run_out":"","pct":0,"passed":False,"valid":True,"taken":0,
-           "tab_switches":0})
+           "tab_switches":0,"last_ping":None,"test_dataset":None})
 
     st.set_page_config(page_title=title, page_icon="📋", layout="centered")
     _inject_security()
@@ -125,9 +125,17 @@ def _email_phase(level, tests_map, time_limit, title):
         max_score = sum(q["marks"] for q in q_list)
         with st.spinner("Setting up your test..."):
             attempt_id = start_attempt(email, level, test_id, attempt_num, max_score)
+
+        # Load dataset for intermediate tests
+        dataset = None
+        if level == "intermediate":
+            from questions import INTERMEDIATE_DATASETS
+            dataset = INTERMEDIATE_DATASETS.get(test_id)
+
         st.session_state.update({"phase":"test","email":email,"test_id":test_id,"q_idx":0,
             "score":0,"max_score":max_score,"results":[],"started_at":time.time(),
-            "attempt_id":attempt_id,"attempt_num":attempt_num,"run_out":""})
+            "attempt_id":attempt_id,"attempt_num":attempt_num,"run_out":"",
+            "test_dataset": dataset})
         st.rerun()
 
 # ── TEST PHASE ───────────────────────────────────────────────────
@@ -152,6 +160,13 @@ def _test_phase(tests_map, time_limit):
         col = "red" if tl<300 else "orange" if tl<(time_limit*0.25) else "green"
         st.markdown(f"<div style='text-align:right'><span style='font-size:1.4rem;font-weight:700;color:{col}'>⏱ {fmt_time(tl)}</span></div>", unsafe_allow_html=True)
 
+    st.divider()
+
+    # ── Show dataset for intermediate tests ──────────────────────
+    dataset = st.session_state.get("test_dataset")
+    if dataset is not None:
+        with st.expander("📊 View Dataset (df)", expanded=False):
+            st.dataframe(dataset, use_container_width=True, height=250)
     st.divider()
     badge = {"mcq":"MCQ","fill":"Fill in Blank","code":"Write Code"}
     st.markdown(f"**Q{q['id']}** &nbsp;&nbsp;<span style='background:#e8f0fe;padding:2px 8px;border-radius:4px;font-size:0.8rem'>{badge[q['type']]}</span>&nbsp;&nbsp;<span style='background:#fef9c3;padding:2px 8px;border-radius:4px;font-size:0.8rem'>{q['marks']} mark{'s' if q['marks']>1 else ''}</span>", unsafe_allow_html=True)
