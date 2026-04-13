@@ -34,7 +34,7 @@ def _inject_security():
 
 def _sync_tab_switches():
     now  = time.time()
-    last = st.session_state.get("last_ping", now)
+    last = st.session_state.get("last_ping") or now  # fix: default to now if None
     gap  = now - last
     if gap > 5 and st.session_state.get("phase") == "test":
         st.session_state.tab_switches = st.session_state.get("tab_switches", 0) + 1
