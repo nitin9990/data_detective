@@ -19,31 +19,25 @@ def time_left(time_limit):
 
 # ── COPY PROTECTION ──────────────────────────────────────────────
 def _inject_security():
-    # CSS only — scripts in st.markdown don't execute, components.html is sandboxed
     st.markdown("""
 <style>
-* { -webkit-user-select:none; -moz-user-select:none; user-select:none; }
-input, textarea,
-[data-testid="stTextArea"] textarea,
-[data-testid="stTextInput"] input {
-    -webkit-user-select:text !important; user-select:text !important;
+/* Block paste ONLY in code editor textareas */
+[data-testid="stTextArea"] textarea {
+    -webkit-user-select: text !important;
+    user-select: text !important;
 }
 </style>
+<script>
+/* This won't execute via st.markdown — paste blocking handled via onpaste attr below */
+</script>
 """, unsafe_allow_html=True)
 
 def _sync_tab_switches():
-    """
-    Heartbeat approach — no JS needed.
-    autorefresh fires every 1s when tab is active.
-    Browsers throttle hidden tabs → gap > 5s = tab was switched.
-    """
-    now = time.time()
+    now  = time.time()
     last = st.session_state.get("last_ping", now)
     gap  = now - last
-
     if gap > 5 and st.session_state.get("phase") == "test":
         st.session_state.tab_switches = st.session_state.get("tab_switches", 0) + 1
-
     st.session_state.last_ping = now
 
 # ── CODE EXECUTION ───────────────────────────────────────────────
@@ -187,7 +181,31 @@ def _test_phase(tests_map, time_limit):
 
     else:
         st.caption("💻 Variables / DataFrames are preloaded — write your solution below:")
+        st.caption("⚠️ Paste is disabled in the code editor.")
         code_val = st.text_area("Code editor:", height=160, key=f"inp_{q_idx}", placeholder="# write your code here")
+
+        # Block paste inside code textarea only
+        import streamlit.components.v1 as components
+        components.html("""
+<script>
+(function(){
+    function blockPaste(){
+        var frames = parent.document.querySelectorAll('[data-testid="stTextArea"] textarea');
+        frames.forEach(function(el){
+            if(!el._pasteLocked){
+                el._pasteLocked = true;
+                el.addEventListener('paste', function(e){ e.preventDefault(); }, true);
+                el.addEventListener('drop',  function(e){ e.preventDefault(); }, true);
+            }
+        });
+    }
+    blockPaste();
+    setTimeout(blockPaste, 500);
+    setTimeout(blockPaste, 1500);
+})();
+</script>
+""", height=0)
+
         c1, c2 = st.columns([1,3])
         with c1:
             if st.button("▶ Run", key=f"run_{q_idx}"):
