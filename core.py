@@ -236,10 +236,8 @@ def _test_phase(tests_map, time_limit):
     if q["type"] in ("mcq", "fill"):
         with st.expander("🧪 Scratch Pad — Run code to verify your answer", expanded=False):
             preload = q.get("preload", "")
-            # For intermediate tests inject df setup
             dataset = st.session_state.get("test_dataset")
             if dataset is not None and not preload:
-                from questions import INTERMEDIATE_DATASETS
                 tid = st.session_state.get("test_id")
                 preload_map = {
                     1: "import pandas as pd,numpy as np\nnp.random.seed(42)\n_n=200\ndf=pd.DataFrame({'customer_id':range(1001,1201),'age':np.random.randint(22,65,_n),'income':np.random.randint(300000,2000000,_n),'bureau_score':np.random.randint(500,850,_n),'existing_loans':np.random.randint(0,6,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Freelancer'],_n,p=[0.5,0.2,0.2,0.1]),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n),'credit_line_assigned':np.random.randint(50000,1000000,_n)})\n",
@@ -250,10 +248,14 @@ def _test_phase(tests_map, time_limit):
                 }
                 preload = preload_map.get(tid, "")
 
-            scratch = st.text_area("", height=120, key=f"scratch_{q_idx}", placeholder="# try code here — won't affect your answer")
+            scratch_key = f"scratch_{q_idx}"
+            scratch_out_key = f"scratch_out_{q_idx}"
+            scratch = st.text_area("", height=120, key=scratch_key,
+                                   placeholder="# try code here — won't affect your answer")
             if st.button("▶ Run", key=f"scratch_run_{q_idx}"):
-                out = run_code(preload, scratch or "")
-                st.code(out, language="text")
+                st.session_state[scratch_out_key] = run_code(preload, scratch or "")
+            if st.session_state.get(scratch_out_key):
+                st.code(st.session_state[scratch_out_key], language="text")
 
 def _record(q, val, q_list, time_limit):
     ok = grade(q, val)
