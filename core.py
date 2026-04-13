@@ -232,6 +232,29 @@ def _test_phase(tests_map, time_limit):
         if st.session_state.run_out:
             st.code(st.session_state.run_out, language="text")
 
+    # ── Scratch pad for MCQ and fill questions ───────────────────
+    if q["type"] in ("mcq", "fill"):
+        with st.expander("🧪 Scratch Pad — Run code to verify your answer", expanded=False):
+            preload = q.get("preload", "")
+            # For intermediate tests inject df setup
+            dataset = st.session_state.get("test_dataset")
+            if dataset is not None and not preload:
+                from questions import INTERMEDIATE_DATASETS
+                tid = st.session_state.get("test_id")
+                preload_map = {
+                    1: "import pandas as pd,numpy as np\nnp.random.seed(42)\n_n=200\ndf=pd.DataFrame({'customer_id':range(1001,1201),'age':np.random.randint(22,65,_n),'income':np.random.randint(300000,2000000,_n),'bureau_score':np.random.randint(500,850,_n),'existing_loans':np.random.randint(0,6,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Freelancer'],_n,p=[0.5,0.2,0.2,0.1]),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n),'credit_line_assigned':np.random.randint(50000,1000000,_n)})\n",
+                    2: "import pandas as pd,numpy as np\nnp.random.seed(99)\n_n=250\ndf=pd.DataFrame({'customer_id':range(2001,2251),'age':np.random.randint(25,65,_n),'annual_income':np.random.randint(200000,3000000,_n),'bureau_score':np.random.randint(550,900,_n),'credit_utilization':np.round(np.random.uniform(0.1,0.95,_n),2),'num_credit_cards':np.random.randint(1,8,_n),'months_on_book':np.random.randint(6,120,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Retired'],_n,p=[0.55,0.2,0.15,0.1]),'city_tier':np.random.choice(['Tier1','Tier2','Tier3'],_n,p=[0.4,0.35,0.25]),'credit_line_assigned':np.random.randint(25000,800000,_n)})\n",
+                    3: "import pandas as pd,numpy as np\nnp.random.seed(123)\n_n=300\ndf=pd.DataFrame({'customer_id':range(3001,3301),'age':np.random.randint(22,60,_n),'loan_amount':np.random.randint(50000,1500000,_n),'tenure_months':np.random.choice([12,24,36,48,60],_n),'bureau_score':np.random.randint(450,850,_n),'existing_emi':np.random.randint(0,50000,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business'],_n,p=[0.6,0.25,0.15]),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.75,0.25]),'foir':np.round(np.random.uniform(0.2,0.8,_n),2),'loan_type':np.random.choice(['Personal','Auto','Home','Education'],_n,p=[0.4,0.3,0.2,0.1])})\n",
+                    4: "import pandas as pd,numpy as np\nnp.random.seed(456)\n_n=250\n_m=pd.date_range('2022-01',periods=24,freq='ME')\ndf=pd.DataFrame({'customer_id':range(4001,4251),'disbursement_month':np.random.choice(_m,_n),'bureau_score':np.random.randint(500,850,_n),'loan_amount':np.random.randint(100000,2000000,_n),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.72,0.28]),'state':np.random.choice(['MH','DL','KA','TN','UP'],_n),'product':np.random.choice(['PL','AL','HL'],_n,p=[0.5,0.3,0.2]),'vintage_months':np.random.randint(1,25,_n)})\ndf['year']=df['disbursement_month'].dt.year\ndf['quarter']=df['disbursement_month'].dt.quarter\n",
+                    5: "import pandas as pd,numpy as np\nnp.random.seed(789)\n_n=500\ndf=pd.DataFrame({'customer_id':np.random.choice(range(5001,5101),_n),'month':np.random.choice(pd.date_range('2023-01',periods=12,freq='ME'),_n),'category':np.random.choice(['Shopping','Food','Travel','Fuel','Entertainment','Healthcare'],_n),'spend_amount':np.random.randint(500,50000,_n),'transaction_count':np.random.randint(1,20,_n),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n)})\n",
+                }
+                preload = preload_map.get(tid, "")
+
+            scratch = st.text_area("", height=120, key=f"scratch_{q_idx}", placeholder="# try code here — won't affect your answer")
+            if st.button("▶ Run", key=f"scratch_run_{q_idx}"):
+                out = run_code(preload, scratch or "")
+                st.code(out, language="text")
+
 def _record(q, val, q_list, time_limit):
     ok = grade(q, val)
     st.session_state.score += q["marks"] if ok else 0
