@@ -251,11 +251,19 @@ def _test_phase(tests_map, time_limit):
 
         scratch_key     = f"scratch_{q_idx}"
         scratch_out_key = f"scratch_out_{q_idx}"
+        scratch_code_key = f"scratch_code_{q_idx}"
 
         scratch = st.text_area("", height=120, key=scratch_key,
-                               placeholder="# write code here, e.g.:\n# df['category'].nunique()\n# df.groupby('city')['revenue'].mean()")
+                               placeholder="# write code here, e.g.:\n# print(df['category'].nunique())\n# print(df.groupby('city')['revenue'].mean())")
+
         if st.button("▶ Run Code", key=f"scratch_run_{q_idx}"):
-            st.session_state[scratch_out_key] = run_code(preload, scratch or "")
+            code = st.session_state.get(scratch_key, "")
+            # auto-wrap bare expression with print() if no print present
+            lines = code.strip().splitlines()
+            if lines and not any("print" in l for l in lines):
+                lines[-1] = f"print({lines[-1]})"
+            final_code = "\n".join(lines)
+            st.session_state[scratch_out_key] = run_code(preload, final_code)
 
         if st.session_state.get(scratch_out_key):
             st.code(st.session_state[scratch_out_key], language="text")
