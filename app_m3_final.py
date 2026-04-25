@@ -1,5 +1,5 @@
 import streamlit as st
-st.set_page_config(page_title="Module 3 Final Assessment — EDA & Statistics", page_icon="📋", layout="centered")
+
 try:
     from questions_m3 import M3_FINAL_TEST, M3_DATASET
     from core import run_app
