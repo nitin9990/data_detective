@@ -1,5 +1,5 @@
 import streamlit as st
-st.set_page_config(page_title="Module 1 Final Assessment — Python Core", page_icon="📋", layout="centered")
+
 try:
     from questions_m1 import M1_FINAL_TEST
     from core import run_app
