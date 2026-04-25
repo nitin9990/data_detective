@@ -197,7 +197,19 @@ def _test_phase(tests_map, time_limit, mode="final"):
     st.markdown("")
 
     if q["type"] == "code":
-        st.info(q["text"])
+        # Split question into instruction + code block
+        text = q["text"]
+        parts = text.split("\n\n", 1)
+        if len(parts) == 2:
+            st.write(parts[0])
+            # detect if second part has python code
+            code_part = parts[1].strip()
+            if any(k in code_part for k in ['def ','class ','print(','return ','for ','if ','import ']):
+                st.code(code_part, language="python")
+            else:
+                st.write(code_part)
+        else:
+            st.write(text)
     else:
         parts = q["text"].split("\n\n", 1)
         if len(parts)==2 and any(k in parts[1] for k in ['def ','for ','[','{']):
