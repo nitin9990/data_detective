@@ -231,78 +231,61 @@ def _test_phase(tests_map, time_limit, mode="final"):
             else: _record(q, val, q_list, time_limit)
 
     else:
-        st.caption("💻 Variables / DataFrames are preloaded — write your solution below:")
+        st.caption("💻 Write your answer code below:")
         st.caption("⚠️ Paste is disabled in the code editor.")
-        code_val = st.text_area("Code editor:", height=160, key=f"inp_{q_idx}", placeholder="# write your code here")
+        code_val = st.text_area("Code editor:", height=180, key=f"inp_{q_idx}",
+                                placeholder="# write your code here\n# preloaded variables are available")
 
-        # Block paste inside code textarea only
-        import streamlit.components.v1 as components
-        components.html("""
-<script>
-(function(){
-    function blockPaste(){
-        var frames = parent.document.querySelectorAll('[data-testid="stTextArea"] textarea');
-        frames.forEach(function(el){
-            if(!el._pasteLocked){
-                el._pasteLocked = true;
-                el.addEventListener('paste', function(e){ e.preventDefault(); }, true);
-                el.addEventListener('drop',  function(e){ e.preventDefault(); }, true);
-            }
-        });
-    }
-    blockPaste();
-    setTimeout(blockPaste, 500);
-    setTimeout(blockPaste, 1500);
-})();
-</script>
-""", height=0)
-
+        run_out_key = f"run_out_{q_idx}"
         c1, c2 = st.columns([1,3])
         with c1:
             if st.button("▶ Run", key=f"run_{q_idx}"):
-                st.session_state.run_out = run_code(q["preload"], code_val or "")
+                code = st.session_state.get(f"inp_{q_idx}", "")
+                lines = code.strip().splitlines()
+                if lines and not any("print" in l for l in lines):
+                    lines[-1] = f"print({lines[-1]})"
+                st.session_state[run_out_key] = run_code(q.get("preload",""), "\n".join(lines))
         with c2:
             if st.button("Submit →", type="primary", key=f"sub_{q_idx}"):
-                if not (code_val or "").strip(): st.warning("Write some code first.")
-                else: _record(q, code_val, q_list, time_limit)
-        if st.session_state.run_out:
-            st.code(st.session_state.run_out, language="text")
+                code = st.session_state.get(f"inp_{q_idx}", "")
+                if not code.strip(): st.warning("Write some code first.")
+                else: _record(q, code, q_list, time_limit)
+        if st.session_state.get(run_out_key):
+            st.code(st.session_state[run_out_key], language="text")
 
-    # ── Scratch pad for MCQ and fill questions ───────────────────
-    if q["type"] in ("mcq", "fill"):
-        st.markdown("---")
-        st.caption("🧪 Scratch Pad — run code to help answer the question (won't affect your score)")
-        preload = q.get("preload", "")
-        dataset = st.session_state.get("test_dataset")
-        if dataset is not None and not preload:
-            tid = st.session_state.get("test_id")
-            preload_map = {
-                1: "import pandas as pd,numpy as np\nnp.random.seed(42)\n_n=200\ndf=pd.DataFrame({'customer_id':range(1001,1201),'age':np.random.randint(22,65,_n),'income':np.random.randint(300000,2000000,_n),'bureau_score':np.random.randint(500,850,_n),'existing_loans':np.random.randint(0,6,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Freelancer'],_n,p=[0.5,0.2,0.2,0.1]),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n),'credit_line_assigned':np.random.randint(50000,1000000,_n)})\n",
-                2: "import pandas as pd,numpy as np\nnp.random.seed(99)\n_n=250\ndf=pd.DataFrame({'customer_id':range(2001,2251),'age':np.random.randint(25,65,_n),'annual_income':np.random.randint(200000,3000000,_n),'bureau_score':np.random.randint(550,900,_n),'credit_utilization':np.round(np.random.uniform(0.1,0.95,_n),2),'num_credit_cards':np.random.randint(1,8,_n),'months_on_book':np.random.randint(6,120,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Retired'],_n,p=[0.55,0.2,0.15,0.1]),'city_tier':np.random.choice(['Tier1','Tier2','Tier3'],_n,p=[0.4,0.35,0.25]),'credit_line_assigned':np.random.randint(25000,800000,_n)})\n",
-                3: "import pandas as pd,numpy as np\nnp.random.seed(123)\n_n=300\ndf=pd.DataFrame({'customer_id':range(3001,3301),'age':np.random.randint(22,60,_n),'loan_amount':np.random.randint(50000,1500000,_n),'tenure_months':np.random.choice([12,24,36,48,60],_n),'bureau_score':np.random.randint(450,850,_n),'existing_emi':np.random.randint(0,50000,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business'],_n,p=[0.6,0.25,0.15]),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.75,0.25]),'foir':np.round(np.random.uniform(0.2,0.8,_n),2),'loan_type':np.random.choice(['Personal','Auto','Home','Education'],_n,p=[0.4,0.3,0.2,0.1])})\n",
-                4: "import pandas as pd,numpy as np\nnp.random.seed(456)\n_n=250\n_m=pd.date_range('2022-01',periods=24,freq='ME')\ndf=pd.DataFrame({'customer_id':range(4001,4251),'disbursement_month':np.random.choice(_m,_n),'bureau_score':np.random.randint(500,850,_n),'loan_amount':np.random.randint(100000,2000000,_n),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.72,0.28]),'state':np.random.choice(['MH','DL','KA','TN','UP'],_n),'product':np.random.choice(['PL','AL','HL'],_n,p=[0.5,0.3,0.2]),'vintage_months':np.random.randint(1,25,_n)})\ndf['year']=df['disbursement_month'].dt.year\ndf['quarter']=df['disbursement_month'].dt.quarter\n",
-                5: "import pandas as pd,numpy as np\nnp.random.seed(789)\n_n=500\ndf=pd.DataFrame({'customer_id':np.random.choice(range(5001,5101),_n),'month':np.random.choice(pd.date_range('2023-01',periods=12,freq='ME'),_n),'category':np.random.choice(['Shopping','Food','Travel','Fuel','Entertainment','Healthcare'],_n),'spend_amount':np.random.randint(500,50000,_n),'transaction_count':np.random.randint(1,20,_n),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n)})\n",
-            }
-            preload = preload_map.get(tid, "")
+    # ── Scratch pad for ALL question types ───────────────────────
+    st.markdown("---")
+    st.caption("🧪 Scratch Pad — run any code to explore (won't affect your answer)")
+    level = st.session_state.get("app_level", "")
+    preload_scratch = q.get("preload", "")
 
-        scratch_key     = f"scratch_{q_idx}"
-        scratch_out_key = f"scratch_out_{q_idx}"
-        scratch_code_key = f"scratch_code_{q_idx}"
+    # For intermediate/m3 tests inject dataset if no preload
+    dataset = st.session_state.get("test_dataset")
+    if dataset is not None and not preload_scratch:
+        tid = st.session_state.get("test_id")
+        preload_map = {
+            1: "import pandas as pd,numpy as np\nnp.random.seed(42)\n_n=200\ndf=pd.DataFrame({'customer_id':range(1001,1201),'age':np.random.randint(22,65,_n),'income':np.random.randint(300000,2000000,_n),'bureau_score':np.random.randint(500,850,_n),'existing_loans':np.random.randint(0,6,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Freelancer'],_n,p=[0.5,0.2,0.2,0.1]),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n),'credit_line_assigned':np.random.randint(50000,1000000,_n)})\n",
+            2: "import pandas as pd,numpy as np\nnp.random.seed(99)\n_n=250\ndf=pd.DataFrame({'customer_id':range(2001,2251),'age':np.random.randint(25,65,_n),'annual_income':np.random.randint(200000,3000000,_n),'bureau_score':np.random.randint(550,900,_n),'credit_utilization':np.round(np.random.uniform(0.1,0.95,_n),2),'num_credit_cards':np.random.randint(1,8,_n),'months_on_book':np.random.randint(6,120,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Retired'],_n,p=[0.55,0.2,0.15,0.1]),'city_tier':np.random.choice(['Tier1','Tier2','Tier3'],_n,p=[0.4,0.35,0.25]),'credit_line_assigned':np.random.randint(25000,800000,_n)})\n",
+            3: "import pandas as pd,numpy as np\nnp.random.seed(123)\n_n=300\ndf=pd.DataFrame({'customer_id':range(3001,3301),'age':np.random.randint(22,60,_n),'loan_amount':np.random.randint(50000,1500000,_n),'tenure_months':np.random.choice([12,24,36,48,60],_n),'bureau_score':np.random.randint(450,850,_n),'existing_emi':np.random.randint(0,50000,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business'],_n,p=[0.6,0.25,0.15]),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.75,0.25]),'foir':np.round(np.random.uniform(0.2,0.8,_n),2),'loan_type':np.random.choice(['Personal','Auto','Home','Education'],_n,p=[0.4,0.3,0.2,0.1])})\n",
+            4: "import pandas as pd,numpy as np\nnp.random.seed(456)\n_n=250\n_m=pd.date_range('2022-01',periods=24,freq='ME')\ndf=pd.DataFrame({'customer_id':range(4001,4251),'disbursement_month':np.random.choice(_m,_n),'bureau_score':np.random.randint(500,850,_n),'loan_amount':np.random.randint(100000,2000000,_n),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.72,0.28]),'state':np.random.choice(['MH','DL','KA','TN','UP'],_n),'product':np.random.choice(['PL','AL','HL'],_n,p=[0.5,0.3,0.2]),'vintage_months':np.random.randint(1,25,_n)})\ndf['year']=df['disbursement_month'].dt.year\ndf['quarter']=df['disbursement_month'].dt.quarter\n",
+            5: "import pandas as pd,numpy as np\nnp.random.seed(789)\n_n=500\ndf=pd.DataFrame({'customer_id':np.random.choice(range(5001,5101),_n),'month':np.random.choice(pd.date_range('2023-01',periods=12,freq='ME'),_n),'category':np.random.choice(['Shopping','Food','Travel','Fuel','Entertainment','Healthcare'],_n),'spend_amount':np.random.randint(500,50000,_n),'transaction_count':np.random.randint(1,20,_n),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n)})\n",
+        }
+        # M3 dataset
+        m3_setup = "import pandas as pd,numpy as np\nnp.random.seed(101)\n_n=400\ndf=pd.DataFrame({'customer_id':range(6001,6401),'age':np.random.randint(22,65,_n),'income':np.random.randint(200000,3000000,_n),'credit_score':np.random.randint(450,900,_n),'loan_amount':np.random.randint(50000,2000000,_n),'loan_tenure':np.random.choice([12,24,36,48,60],_n),'emi_amount':np.random.randint(5000,80000,_n),'num_products':np.random.randint(1,6,_n),'is_defaulter':np.random.choice([0,1],_n,p=[0.78,0.22]),'gender':np.random.choice(['M','F'],_n,p=[0.6,0.4]),'region':np.random.choice(['North','South','East','West'],_n),'months_with_bank':np.random.randint(6,120,_n)})\n"
+        preload_scratch = preload_map.get(tid, m3_setup)
 
-        scratch = st.text_area("", height=120, key=scratch_key,
-                               placeholder="# write code here, e.g.:\n# print(df['category'].nunique())\n# print(df.groupby('city')['revenue'].mean())")
-
-        if st.button("▶ Run Code", key=f"scratch_run_{q_idx}"):
-            code = st.session_state.get(scratch_key, "")
-            # auto-wrap bare expression with print() if no print present
-            lines = code.strip().splitlines()
-            if lines and not any("print" in l for l in lines):
-                lines[-1] = f"print({lines[-1]})"
-            final_code = "\n".join(lines)
-            st.session_state[scratch_out_key] = run_code(preload, final_code)
-
-        if st.session_state.get(scratch_out_key):
-            st.code(st.session_state[scratch_out_key], language="text")
+    scratch_key     = f"scratch_{q_idx}"
+    scratch_out_key = f"scratch_out_{q_idx}"
+    scratch = st.text_area("", height=120, key=scratch_key,
+                           placeholder="# explore freely here\n# print(df.head())\n# print(df.describe())")
+    if st.button("▶ Run Code", key=f"scratch_run_{q_idx}"):
+        code = st.session_state.get(scratch_key, "")
+        lines = code.strip().splitlines()
+        if lines and not any("print" in l for l in lines):
+            lines[-1] = f"print({lines[-1]})"
+        st.session_state[scratch_out_key] = run_code(preload_scratch, "\n".join(lines))
+    if st.session_state.get(scratch_out_key):
+        st.code(st.session_state[scratch_out_key], language="text")
 
 def _record(q, val, q_list, time_limit):
     ok = grade(q, val)
