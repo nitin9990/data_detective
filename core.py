@@ -61,11 +61,15 @@ def grade(q, val):
 # ── SUPABASE ─────────────────────────────────────────────────────
 def _sb(): return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
 
-def check_attempts(email, level):
-    cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
-    res = _sb().table("attempts").select("id").eq("email", email.lower().strip()).eq("level", level).gte("started_at", cutoff).execute()
+def check_attempts(email, level, max_attempts=3):
+    if max_attempts == 1:
+        # lifetime block — no time window
+        res = _sb().table("attempts").select("id").eq("email", email.lower().strip()).eq("level", level).execute()
+    else:
+        cutoff = (datetime.now(timezone.utc) - timedelta(days=3)).isoformat()
+        res = _sb().table("attempts").select("id").eq("email", email.lower().strip()).eq("level", level).gte("started_at", cutoff).execute()
     count = len(res.data)
-    return count + 1, count >= 3
+    return count + 1, count >= max_attempts
 
 def start_attempt(email, level, test_id, attempt_num, max_score):
     res = _sb().table("attempts").insert({"email":email.lower().strip(),"level":level,"test_id":test_id,"attempt_num":attempt_num,"max_score":max_score}).execute()
@@ -85,30 +89,43 @@ def _init(defaults):
 # ════════════════════════════════════════════════════════════════
 # MAIN
 # ════════════════════════════════════════════════════════════════
-def run_app(level, tests_map, time_limit, title):
+def run_app(level, tests_map, time_limit, title, mode="final", max_attempts=1, dataset=None):
+    st.set_page_config(page_title=title, page_icon="📋", layout="centered")
     _init({"phase":"email","email":"","test_id":None,"q_idx":0,"score":0,"max_score":0,
            "results":[],"started_at":None,"attempt_id":None,"attempt_num":1,
            "run_out":"","pct":0,"passed":False,"valid":True,"taken":0,
-           "tab_switches":0,"last_ping":None,"test_dataset":None})
+           "tab_switches":0,"last_ping":None,"test_dataset":None,
+           "app_mode": mode, "app_max_attempts": max_attempts,
+           "app_time_limit": time_limit})
 
-    st.set_page_config(page_title=title, page_icon="📋", layout="centered")
     _inject_security()
     _sync_tab_switches()
 
     p = st.session_state.phase
-    if   p == "email": _email_phase(level, tests_map, time_limit, title)
-    elif p == "test":  _test_phase(tests_map, time_limit)
-    elif p == "score": _score_phase(title)
+    if   p == "email": _email_phase(level, tests_map, time_limit, title, mode, max_attempts, dataset)
+    elif p == "test":  _test_phase(tests_map, time_limit, mode)
+    elif p == "score": _score_phase(title, mode)
 
 # ── EMAIL PHASE ──────────────────────────────────────────────────
-def _email_phase(level, tests_map, time_limit, title):
+def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, dataset):
     st.title(title)
-    st.markdown(f"""
+    if mode == "practice":
+        st.markdown(f"""
+| | |
+|---|---|
+| **Mode** | Practice — no time limit |
+| **Scoring** | Marks shown per question |
+| **Pass/Fail** | Not applicable |
+| **Max Attempts** | {max_attempts} total |
+| **Questions** | One at a time — no going back |
+""")
+    else:
+        st.markdown(f"""
 | | |
 |---|---|
 | **Duration** | {time_limit//60} minutes |
 | **Pass Mark** | 80% |
-| **Max Attempts** | 3 *(within any 3-day window)* |
+| **Max Attempts** | {max_attempts} (one chance only) |
 | **Questions** | One at a time — no going back |
 """)
     st.divider()
@@ -117,34 +134,38 @@ def _email_phase(level, tests_map, time_limit, title):
         if not email or "@" not in email:
             st.error("Enter a valid email address."); return
         with st.spinner("Checking eligibility..."):
-            attempt_num, blocked = check_attempts(email, level)
+            attempt_num, blocked = check_attempts(email, level, max_attempts)
         if blocked:
-            st.error("⛔  You have used all 3 attempts in the last 3 days."); return
+            msg = "⛔  You have used your one attempt for this assessment." if max_attempts==1 \
+                  else f"⛔  You have used all {max_attempts} attempts."
+            st.error(msg); return
         test_id   = random.choice(list(tests_map.keys()))
         q_list    = tests_map[test_id]
         max_score = sum(q["marks"] for q in q_list)
         with st.spinner("Setting up your test..."):
             attempt_id = start_attempt(email, level, test_id, attempt_num, max_score)
 
-        # Load dataset for intermediate tests
-        dataset = None
-        if level == "intermediate":
+        # Dataset: passed directly or from intermediate questions
+        ds = dataset
+        if ds is None and level == "intermediate":
             from questions import INTERMEDIATE_DATASETS
-            dataset = INTERMEDIATE_DATASETS.get(test_id)
+            ds = INTERMEDIATE_DATASETS.get(test_id)
 
-        st.session_state.update({"phase":"test","email":email,"test_id":test_id,"q_idx":0,
+        st.session_state.update({
+            "phase":"test","email":email,"test_id":test_id,"q_idx":0,
             "score":0,"max_score":max_score,"results":[],"started_at":time.time(),
             "attempt_id":attempt_id,"attempt_num":attempt_num,"run_out":"",
-            "test_dataset": dataset})
+            "test_dataset": ds
+        })
         st.rerun()
 
 # ── TEST PHASE ───────────────────────────────────────────────────
-def _test_phase(tests_map, time_limit):
+def _test_phase(tests_map, time_limit, mode="final"):
     from streamlit_autorefresh import st_autorefresh
     st_autorefresh(interval=1000, key="ticker")
 
-    tl = time_left(time_limit)
-    if tl <= 0:
+    tl = time_left(time_limit) if time_limit else None
+    if tl is not None and tl <= 0:
         _do_submit(time_limit); return
 
     q_list = tests_map[st.session_state.test_id]
@@ -157,8 +178,11 @@ def _test_phase(tests_map, time_limit):
         st.progress(q_idx / total)
         st.caption(f"Question {q_idx+1} of {total}  •  {st.session_state.email}")
     with col2:
-        col = "red" if tl<300 else "orange" if tl<(time_limit*0.25) else "green"
-        st.markdown(f"<div style='text-align:right'><span style='font-size:1.4rem;font-weight:700;color:{col}'>⏱ {fmt_time(tl)}</span></div>", unsafe_allow_html=True)
+        if time_limit and tl is not None:
+            col = "red" if tl<300 else "orange" if tl<(time_limit*0.25) else "green"
+            st.markdown(f"<div style='text-align:right'><span style='font-size:1.4rem;font-weight:700;color:{col}'>⏱ {fmt_time(tl)}</span></div>", unsafe_allow_html=True)
+        else:
+            st.markdown("<div style='text-align:right'><span style='color:green;font-weight:700'>Practice Mode</span></div>", unsafe_allow_html=True)
 
     st.divider()
 
@@ -288,26 +312,32 @@ def _do_submit(time_limit):
     st.rerun()
 
 # ── SCORE PHASE ──────────────────────────────────────────────────
-def _score_phase(title):
-    st.title("Test Complete")
+def _score_phase(title, mode="final"):
+    st.title("✅ Completed" if mode == "practice" else "Test Complete")
     score=st.session_state.score; max_score=st.session_state.max_score
     pct=st.session_state.pct; passed=st.session_state.passed
     valid=st.session_state.valid; taken=st.session_state.taken
 
-    c1,c2,c3 = st.columns(3)
-    c1.metric("Score", f"{score} / {max_score}")
-    c2.metric("Percentage", f"{pct}%")
-    c3.metric("Result", "PASS ✅" if passed else "FAIL ❌")
+    if mode == "practice":
+        c1, c2 = st.columns(2)
+        c1.metric("Score", f"{score} / {max_score}")
+        c2.metric("Percentage", f"{pct}%")
+        st.info("Practice mode — no pass/fail applied. Review your breakdown below.")
+    else:
+        c1,c2,c3 = st.columns(3)
+        c1.metric("Score", f"{score} / {max_score}")
+        c2.metric("Percentage", f"{pct}%")
+        c3.metric("Result", "PASS ✅" if passed else "FAIL ❌")
 
-    m1, m2 = st.columns(2)
-    m1.metric("Time Taken", fmt_time(taken))
-    tsw = st.session_state.get("tab_switches", 0)
-    flag = "  ⚠️" if tsw > 3 else ""
-    m2.metric("Tab Switches", f"{tsw}{flag}")
+        m1, m2 = st.columns(2)
+        m1.metric("Time Taken", fmt_time(taken))
+        tsw = st.session_state.get("tab_switches", 0)
+        flag = "  ⚠️" if tsw > 3 else ""
+        m2.metric("Tab Switches", f"{tsw}{flag}")
 
-    if not valid: st.error("⚠️  Submission flagged INVALID — time limit exceeded.")
-    elif passed:  st.success("Congratulations! You passed.")
-    else:         st.warning(f"You needed 80% to pass. Your score: {pct}%")
+        if not valid: st.error("⚠️  Submission flagged INVALID — time limit exceeded.")
+        elif passed:  st.success("Congratulations! You passed.")
+        else:         st.warning(f"You needed 80% to pass. Your score: {pct}%")
 
     st.divider()
     st.subheader("Question Breakdown")
