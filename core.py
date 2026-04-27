@@ -303,44 +303,58 @@ def _record(q, val, q_list, time_limit):
     st.rerun()
 
 def _reveal_phase(q_list, time_limit):
-    q   = st.session_state.reveal_q
-    ok  = st.session_state.reveal_ok
-    val = st.session_state.reveal_val
-    is_last = st.session_state.reveal_last
+    q = st.session_state.get("reveal_q")
+    if q is None:
+        st.session_state.phase = "test"
+        st.rerun()
+        return
 
-    st.markdown(f"### {'✅ Correct!' if ok else '❌ Incorrect'}")
-    st.markdown(f"**Your answer:** `{val}`" if q["type"] != "code" else f"**Your code:**")
-    if q["type"] == "code":
-        st.code(val, language="python")
+    ok      = st.session_state.get("reveal_ok", False)
+    val     = st.session_state.get("reveal_val", "")
+    is_last = st.session_state.get("reveal_last", False)
 
-    st.divider()
-
-    # Show correct answer
-    if q["type"] == "mcq":
-        # find correct option
-        import hashlib, re
-        def _norm(s): return re.sub(r'\s+','',str(s).strip().lower())
-        def h(s): return hashlib.sha256(_norm(s).encode()).hexdigest()
-        correct_opt = next((o for o in q["opts"] if h(o)==q["ah"]), "—")
-        st.markdown(f"**✅ Correct Answer:** `{correct_opt}`")
-    elif q["type"] == "fill":
-        st.markdown(f"**✅ Correct Answer:** `{q.get('exp', '—')}`")
+    # Header
+    if ok:
+        st.success("### ✅ Correct!")
     else:
-        st.markdown(f"**✅ Expected Output:**")
-        st.code(q.get("exp","—"), language="text")
+        st.error("### ❌ Incorrect")
 
-    # Show solution if available
+    st.markdown("---")
+
+    # What candidate submitted
+    if q["type"] == "code":
+        st.markdown("**Your code:**")
+        st.code(str(val), language="python")
+    else:
+        st.markdown(f"**Your answer:** `{val}`")
+
+    st.markdown("---")
+
+    # Correct answer
+    if q["type"] == "mcq":
+        import hashlib, re
+        def _n(s): return re.sub(r'\s+','',str(s).strip().lower())
+        def _h(s): return hashlib.sha256(_n(s).encode()).hexdigest()
+        correct_opt = next((o for o in q.get("opts",[]) if _h(o)==q.get("ah","")), "—")
+        st.markdown(f"**✅ Correct Answer:** `{correct_opt}`")
+    else:
+        st.markdown("**✅ Expected Output:**")
+        st.code(str(q.get("exp","—")), language="text")
+
+    # Solution code
     if q.get("solution"):
         st.markdown("**💡 Solution:**")
         st.code(q["solution"], language="python")
 
-    # Show explanation if available
+    # Explanation
     if q.get("explanation"):
         st.info(f"💬 {q['explanation']}")
 
-    st.divider()
-    btn_label = "Finish Test →" if is_last else "Next Question →"
-    if st.button(btn_label, type="primary"):
+    st.markdown("---")
+
+    btn_label = "🏁 Finish Test" if is_last else "Next Question →"
+    if st.button(btn_label, type="primary", key="next_btn"):
+        st.session_state.reveal_q = None
         if is_last:
             _do_submit(time_limit)
         else:
