@@ -96,15 +96,17 @@ def run_app(level, tests_map, time_limit, title, mode="final", max_attempts=1, d
            "run_out":"","pct":0,"passed":False,"valid":True,"taken":0,
            "tab_switches":0,"last_ping":None,"test_dataset":None,
            "app_mode": mode, "app_max_attempts": max_attempts,
-           "app_time_limit": time_limit})
+           "app_time_limit": time_limit,
+           "reveal_q":None,"reveal_ok":False,"reveal_val":"","reveal_last":False})
 
     _inject_security()
     _sync_tab_switches()
 
     p = st.session_state.phase
-    if   p == "email": _email_phase(level, tests_map, time_limit, title, mode, max_attempts, dataset)
-    elif p == "test":  _test_phase(tests_map, time_limit, mode)
-    elif p == "score": _score_phase(title, mode)
+    if   p == "email":  _email_phase(level, tests_map, time_limit, title, mode, max_attempts, dataset)
+    elif p == "test":   _test_phase(tests_map, time_limit, mode)
+    elif p == "reveal": _reveal_phase(tests_map[st.session_state.test_id], time_limit)
+    elif p == "score":  _score_phase(title, mode)
 
 # ── EMAIL PHASE ──────────────────────────────────────────────────
 def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, dataset):
@@ -292,10 +294,59 @@ def _record(q, val, q_list, time_limit):
     st.session_state.score += q["marks"] if ok else 0
     st.session_state.results.append({"id":q["id"],"ok":ok,"got":q["marks"] if ok else 0,"max":q["marks"]})
     st.session_state.run_out = ""
-    if st.session_state.q_idx < len(q_list)-1:
-        st.session_state.q_idx += 1; st.rerun()
+    # Store reveal info and switch to reveal phase
+    st.session_state.reveal_q   = q
+    st.session_state.reveal_ok  = ok
+    st.session_state.reveal_val = val
+    st.session_state.reveal_last = (st.session_state.q_idx >= len(q_list)-1)
+    st.session_state.phase = "reveal"
+    st.rerun()
+
+def _reveal_phase(q_list, time_limit):
+    q   = st.session_state.reveal_q
+    ok  = st.session_state.reveal_ok
+    val = st.session_state.reveal_val
+    is_last = st.session_state.reveal_last
+
+    st.markdown(f"### {'✅ Correct!' if ok else '❌ Incorrect'}")
+    st.markdown(f"**Your answer:** `{val}`" if q["type"] != "code" else f"**Your code:**")
+    if q["type"] == "code":
+        st.code(val, language="python")
+
+    st.divider()
+
+    # Show correct answer
+    if q["type"] == "mcq":
+        # find correct option
+        import hashlib, re
+        def _norm(s): return re.sub(r'\s+','',str(s).strip().lower())
+        def h(s): return hashlib.sha256(_norm(s).encode()).hexdigest()
+        correct_opt = next((o for o in q["opts"] if h(o)==q["ah"]), "—")
+        st.markdown(f"**✅ Correct Answer:** `{correct_opt}`")
+    elif q["type"] == "fill":
+        st.markdown(f"**✅ Correct Answer:** `{q.get('exp', '—')}`")
     else:
-        _do_submit(time_limit)
+        st.markdown(f"**✅ Expected Output:**")
+        st.code(q.get("exp","—"), language="text")
+
+    # Show solution if available
+    if q.get("solution"):
+        st.markdown("**💡 Solution:**")
+        st.code(q["solution"], language="python")
+
+    # Show explanation if available
+    if q.get("explanation"):
+        st.info(f"💬 {q['explanation']}")
+
+    st.divider()
+    btn_label = "Finish Test →" if is_last else "Next Question →"
+    if st.button(btn_label, type="primary"):
+        if is_last:
+            _do_submit(time_limit)
+        else:
+            st.session_state.q_idx += 1
+            st.session_state.phase = "test"
+            st.rerun()
 
 def _do_submit(time_limit):
     pct, passed, valid, taken = finish_attempt(
