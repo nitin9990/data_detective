@@ -76,10 +76,25 @@ def start_attempt(email, level, test_id, attempt_num, max_score):
     return res.data[0]["id"]
 
 def finish_attempt(attempt_id, score, max_score, time_limit, results, tab_switches=0):
-    taken = time_limit - time_left(time_limit)
-    pct   = round(score / max_score * 100, 1) if max_score else 0
-    _sb().table("attempts").update({"submitted_at":datetime.now(timezone.utc).isoformat(),"score":score,"pct":pct,"passed":pct>=80,"valid":taken<=time_limit,"results":results,"tab_switches":tab_switches}).eq("id", attempt_id).execute()
-    return pct, pct>=80, taken<=time_limit, taken
+    taken  = time_limit - time_left(time_limit)
+    score  = min(score, max_score)                                    # cap score at max
+    pct    = round(min(score / max_score * 100, 100), 1) if max_score else 0  # cap at 100%
+    passed = pct >= 80
+    valid  = taken <= time_limit
+    _sb().table("attempts").update({
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
+        "score":        score,
+        "pct":          pct,
+        "passed":       passed,
+        "valid":        valid,
+        "results":      results,
+        "tab_switches": tab_switches,
+    }).eq("id", attempt_id).execute()
+    return pct, passed, valid, taken
+
+def reset_candidate(email, level):
+    """Call from Supabase SQL — not used in app directly."""
+    _sb().table("attempts").delete().eq("email", email.lower().strip()).eq("level", level).execute()
 
 # ── SESSION INIT ─────────────────────────────────────────────────
 def _init(defaults):
