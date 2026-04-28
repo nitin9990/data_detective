@@ -168,11 +168,18 @@ def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, datase
             from questions import INTERMEDIATE_DATASETS
             ds = INTERMEDIATE_DATASETS.get(test_id)
 
+        # Extract dataset preload from first code question — used in scratch pad
+        df_setup = ""
+        for q in q_list:
+            if q.get("type") == "code" and q.get("preload","").strip():
+                df_setup = q["preload"]
+                break
+
         st.session_state.update({
             "phase":"test","email":email,"test_id":test_id,"q_idx":0,
             "score":0,"max_score":max_score,"results":[],"started_at":time.time(),
             "attempt_id":attempt_id,"attempt_num":attempt_num,"run_out":"",
-            "test_dataset": ds
+            "test_dataset": ds, "df_setup": df_setup
         })
         st.rerun()
 
@@ -273,23 +280,9 @@ def _test_phase(tests_map, time_limit, mode="final"):
     # ── Scratch pad for ALL question types ───────────────────────
     st.markdown("---")
     st.caption("🧪 Scratch Pad — run any code to explore (won't affect your answer)")
-    level = st.session_state.get("app_level", "")
-    preload_scratch = q.get("preload", "")
 
-    # For intermediate/m3 tests inject dataset if no preload
-    dataset = st.session_state.get("test_dataset")
-    if dataset is not None and not preload_scratch:
-        tid = st.session_state.get("test_id")
-        preload_map = {
-            1: "import pandas as pd,numpy as np\nnp.random.seed(42)\n_n=200\ndf=pd.DataFrame({'customer_id':range(1001,1201),'age':np.random.randint(22,65,_n),'income':np.random.randint(300000,2000000,_n),'bureau_score':np.random.randint(500,850,_n),'existing_loans':np.random.randint(0,6,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Freelancer'],_n,p=[0.5,0.2,0.2,0.1]),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n),'credit_line_assigned':np.random.randint(50000,1000000,_n)})\n",
-            2: "import pandas as pd,numpy as np\nnp.random.seed(99)\n_n=250\ndf=pd.DataFrame({'customer_id':range(2001,2251),'age':np.random.randint(25,65,_n),'annual_income':np.random.randint(200000,3000000,_n),'bureau_score':np.random.randint(550,900,_n),'credit_utilization':np.round(np.random.uniform(0.1,0.95,_n),2),'num_credit_cards':np.random.randint(1,8,_n),'months_on_book':np.random.randint(6,120,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business','Retired'],_n,p=[0.55,0.2,0.15,0.1]),'city_tier':np.random.choice(['Tier1','Tier2','Tier3'],_n,p=[0.4,0.35,0.25]),'credit_line_assigned':np.random.randint(25000,800000,_n)})\n",
-            3: "import pandas as pd,numpy as np\nnp.random.seed(123)\n_n=300\ndf=pd.DataFrame({'customer_id':range(3001,3301),'age':np.random.randint(22,60,_n),'loan_amount':np.random.randint(50000,1500000,_n),'tenure_months':np.random.choice([12,24,36,48,60],_n),'bureau_score':np.random.randint(450,850,_n),'existing_emi':np.random.randint(0,50000,_n),'employment_type':np.random.choice(['Salaried','Self-Employed','Business'],_n,p=[0.6,0.25,0.15]),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.75,0.25]),'foir':np.round(np.random.uniform(0.2,0.8,_n),2),'loan_type':np.random.choice(['Personal','Auto','Home','Education'],_n,p=[0.4,0.3,0.2,0.1])})\n",
-            4: "import pandas as pd,numpy as np\nnp.random.seed(456)\n_n=250\n_m=pd.date_range('2022-01',periods=24,freq='ME')\ndf=pd.DataFrame({'customer_id':range(4001,4251),'disbursement_month':np.random.choice(_m,_n),'bureau_score':np.random.randint(500,850,_n),'loan_amount':np.random.randint(100000,2000000,_n),'dpd_90_flag':np.random.choice([0,1],_n,p=[0.72,0.28]),'state':np.random.choice(['MH','DL','KA','TN','UP'],_n),'product':np.random.choice(['PL','AL','HL'],_n,p=[0.5,0.3,0.2]),'vintage_months':np.random.randint(1,25,_n)})\ndf['year']=df['disbursement_month'].dt.year\ndf['quarter']=df['disbursement_month'].dt.quarter\n",
-            5: "import pandas as pd,numpy as np\nnp.random.seed(789)\n_n=500\ndf=pd.DataFrame({'customer_id':np.random.choice(range(5001,5101),_n),'month':np.random.choice(pd.date_range('2023-01',periods=12,freq='ME'),_n),'category':np.random.choice(['Shopping','Food','Travel','Fuel','Entertainment','Healthcare'],_n),'spend_amount':np.random.randint(500,50000,_n),'transaction_count':np.random.randint(1,20,_n),'city':np.random.choice(['Mumbai','Delhi','Bangalore','Chennai','Hyderabad'],_n)})\n",
-        }
-        # M3 dataset
-        m3_setup = "import pandas as pd,numpy as np\nnp.random.seed(101)\n_n=400\ndf=pd.DataFrame({'customer_id':range(6001,6401),'age':np.random.randint(22,65,_n),'income':np.random.randint(200000,3000000,_n),'credit_score':np.random.randint(450,900,_n),'loan_amount':np.random.randint(50000,2000000,_n),'loan_tenure':np.random.choice([12,24,36,48,60],_n),'emi_amount':np.random.randint(5000,80000,_n),'num_products':np.random.randint(1,6,_n),'is_defaulter':np.random.choice([0,1],_n,p=[0.78,0.22]),'gender':np.random.choice(['M','F'],_n,p=[0.6,0.4]),'region':np.random.choice(['North','South','East','West'],_n),'months_with_bank':np.random.randint(6,120,_n)})\n"
-        preload_scratch = preload_map.get(tid, m3_setup)
+    # Use the correct dataset preload stored at test start
+    preload_scratch = st.session_state.get("df_setup", "") or q.get("preload", "")
 
     scratch_key     = f"scratch_{q_idx}"
     scratch_out_key = f"scratch_out_{q_idx}"
