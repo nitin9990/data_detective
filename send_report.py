@@ -170,15 +170,21 @@ def build_html(best):
 
 # ── SEND EMAIL ────────────────────────────────────────────────────
 def send_email(html):
+    print(f"Preparing email...")
+    print(f"From: {GMAIL_USER}")
+    print(f"To: {RECIPIENTS}")
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Axiontech Assessment Report — {datetime.now().strftime('%d %b %Y')}"
     msg["From"]    = GMAIL_USER
     msg["To"]      = ", ".join(RECIPIENTS)
     msg.attach(MIMEText(html, "html"))
+    print("Connecting to Gmail SMTP...")
     with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+        print("Logging in...")
         s.login(GMAIL_USER, GMAIL_PASSWORD)
+        print("Sending...")
         s.sendmail(GMAIL_USER, RECIPIENTS, msg.as_string())
-    print(f"✅ Report sent to {RECIPIENTS}")
+    print(f"✅ Report sent successfully to {RECIPIENTS}")
 
 # ── MAIN ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
