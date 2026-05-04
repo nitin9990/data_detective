@@ -34,9 +34,10 @@ def _inject_security():
 
 def _sync_tab_switches():
     now  = time.time()
-    last = st.session_state.get("last_ping") or now  # fix: default to now if None
+    last = st.session_state.get("last_ping") or now
     gap  = now - last
-    if gap > 5 and st.session_state.get("phase") == "test":
+    # gap > 15s = tab was switched (5s refresh + 10s buffer for slow connections)
+    if gap > 15 and st.session_state.get("phase") == "test":
         st.session_state.tab_switches = st.session_state.get("tab_switches", 0) + 1
     st.session_state.last_ping = now
 
@@ -56,7 +57,13 @@ def run_code(preload, code, timeout=10):
 
 def grade(q, val):
     if q["type"] in ("mcq", "fill"): return h(val) == q["ah"]
-    return hc(run_code(q["preload"], val), q["exp"])
+    # Apply same auto-print logic as scratch pad so output always matches
+    code = val.strip()
+    lines = code.splitlines()
+    if lines and not any("print" in l for l in lines):
+        lines[-1] = f"print({lines[-1]})"
+        code = "\n".join(lines)
+    return hc(run_code(q.get("preload",""), code), q["exp"])
 
 # ── SUPABASE ─────────────────────────────────────────────────────
 def _sb(): return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
@@ -185,11 +192,14 @@ def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, datase
 
 # ── TEST PHASE ───────────────────────────────────────────────────
 def _test_phase(tests_map, time_limit, mode="final"):
-    from streamlit_autorefresh import st_autorefresh
-    st_autorefresh(interval=1000, key="ticker")
+    # Only autorefresh for timed finals — practice has no timer so no need to hammer server
+    is_timed = time_limit and time_limit < 99999
+    if is_timed:
+        from streamlit_autorefresh import st_autorefresh
+        st_autorefresh(interval=5000, key="ticker")  # every 5s not 1s — reduces server load 5x
 
-    tl = time_left(time_limit) if time_limit else None
-    if tl is not None and tl <= 0:
+    tl = time_left(time_limit) if is_timed else None
+    if is_timed and tl is not None and tl <= 0:
         _do_submit(time_limit); return
 
     q_list = tests_map[st.session_state.test_id]
