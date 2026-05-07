@@ -119,6 +119,23 @@ def main():
         step = steps[idx]
         st.subheader(step["title"])
         st.markdown(step["context"])
+
+        # ── Dataset viewer (always visible) ──────────────────────
+        with st.expander("📊 View Dataset (df) — 10,000 rows × 51 columns", expanded=(idx==0)):
+            if "cached_df" not in st.session_state:
+                import pandas as pd, numpy as np, warnings
+                warnings.filterwarnings('ignore')
+                exec(compile(
+                    __import__('questions_m5').DF_SETUP, "<string>", "exec"
+                ), ns := {})
+                st.session_state.cached_df = ns["df"]
+            st.dataframe(st.session_state.cached_df.head(100), use_container_width=True, height=280)
+            st.caption("Showing first 100 rows. All 10,000 rows are loaded in the code environment.")
+            col1, col2, col3 = st.columns(3)
+            col1.metric("Total Rows", "10,000")
+            col2.metric("Features", "50")
+            col3.metric("Default Rate", f"{round(st.session_state.cached_df['default_next_cycle'].mean()*100,1)}%")
+
         st.divider()
 
         # Show if already submitted
