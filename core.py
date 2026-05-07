@@ -78,8 +78,15 @@ def check_attempts(email, level, max_attempts=3):
     count = len(res.data)
     return count + 1, count >= max_attempts
 
-def start_attempt(email, level, test_id, attempt_num, max_score):
-    res = _sb().table("attempts").insert({"email":email.lower().strip(),"level":level,"test_id":test_id,"attempt_num":attempt_num,"max_score":max_score}).execute()
+def start_attempt(email, level, test_id, attempt_num, max_score, employee_id=""):
+    res = _sb().table("attempts").insert({
+        "email":       email.lower().strip(),
+        "level":       level,
+        "test_id":     test_id,
+        "attempt_num": attempt_num,
+        "max_score":   max_score,
+        "employee_id": employee_id.strip(),
+    }).execute()
     return res.data[0]["id"]
 
 def finish_attempt(attempt_id, score, max_score, time_limit, results, tab_switches=0):
@@ -113,7 +120,7 @@ def _init(defaults):
 # ════════════════════════════════════════════════════════════════
 def run_app(level, tests_map, time_limit, title, mode="final", max_attempts=1, dataset=None):
     st.set_page_config(page_title=title, page_icon="📋", layout="centered")
-    _init({"phase":"email","email":"","test_id":None,"q_idx":0,"score":0,"max_score":0,
+    _init({"phase":"email","email":"","employee_id":"","test_id":None,"q_idx":0,"score":0,"max_score":0,
            "results":[],"started_at":None,"attempt_id":None,"attempt_num":1,
            "run_out":"","pct":0,"passed":False,"valid":True,"taken":0,
            "tab_switches":0,"last_ping":None,"test_dataset":None,
@@ -153,10 +160,14 @@ def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, datase
 | **Questions** | One at a time — no going back |
 """)
     st.divider()
-    email = st.text_input("Enter your email to begin", placeholder="you@company.com")
+    email       = st.text_input("Enter your email to begin", placeholder="you@company.com")
+    employee_id = st.text_input("Enter your Employee ID", placeholder="e.g. EMP12345")
+
     if st.button("▶  Start Test", type="primary"):
         if not email or "@" not in email:
             st.error("Enter a valid email address."); return
+        if not employee_id.strip():
+            st.error("Enter your Employee ID."); return
         with st.spinner("Checking eligibility..."):
             attempt_num, blocked = check_attempts(email, level, max_attempts)
         if blocked:
@@ -167,7 +178,7 @@ def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, datase
         q_list    = tests_map[test_id]
         max_score = sum(q["marks"] for q in q_list)
         with st.spinner("Setting up your test..."):
-            attempt_id = start_attempt(email, level, test_id, attempt_num, max_score)
+            attempt_id = start_attempt(email, level, test_id, attempt_num, max_score, employee_id)
 
         # Dataset: passed directly or from intermediate questions
         ds = dataset
@@ -183,7 +194,8 @@ def _email_phase(level, tests_map, time_limit, title, mode, max_attempts, datase
                 break
 
         st.session_state.update({
-            "phase":"test","email":email,"test_id":test_id,"q_idx":0,
+            "phase":"test","email":email,"employee_id":employee_id.strip(),
+            "test_id":test_id,"q_idx":0,
             "score":0,"max_score":max_score,"results":[],"started_at":time.time(),
             "attempt_id":attempt_id,"attempt_num":attempt_num,"run_out":"",
             "test_dataset": ds, "df_setup": df_setup
@@ -423,5 +435,5 @@ def _score_phase(title, mode="final"):
         st.write(f"{'✅' if r['ok'] else '❌'} &nbsp; Q{r['id']} — {r['got']} / {r['max']} marks")
 
     st.divider()
-    st.caption(f"Submitted by: {st.session_state.email}  •  Test #{st.session_state.test_id}")
+    st.caption(f"Submitted by: {st.session_state.email}  •  Employee ID: {st.session_state.get('employee_id','—')}  •  Test #{st.session_state.test_id}")
     st.caption("Results have been recorded. You may close this window.")
