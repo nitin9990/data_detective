@@ -74,6 +74,21 @@ def aggregate(data):
     return best
 
 # ── BUILD HTML ────────────────────────────────────────────────────
+def build_mailto(level, meta, candidates):
+    """Build a mailto: link that opens email with candidate details pre-filled."""
+    import urllib.parse
+    subject = f"Axiontech — {meta['label']} Candidate Details"
+    lines = [f"Candidate Details — {meta['label']}", "=" * 50, ""]
+    lines.append(f"{'Email':<45} {'Score':>8}  {'Status'}")
+    lines.append("-" * 65)
+    for email, pct in sorted(candidates.items(), key=lambda x: -x[1]):
+        status = "PASS" if pct >= 80 else ("Near" if pct >= 60 else "FAIL")
+        lines.append(f"{email:<45} {pct:>7}%  {status}")
+    lines += ["", f"Total: {len(candidates)} candidates"]
+    body = "\n".join(lines)
+    params = urllib.parse.urlencode({"subject": subject, "body": body})
+    return f"mailto:?{params}"
+
 def build_html(best):
     now_str = datetime.now(timezone.utc).strftime("%d %b %Y %H:%M UTC")
 
@@ -81,7 +96,7 @@ def build_html(best):
     grand_appeared = grand_passed = 0
 
     for level, meta in FINALS.items():
-        candidates = best.get(level, {})  # {email: pct}
+        candidates = best.get(level, {})
         appeared   = len(candidates)
         passed     = sum(1 for p in candidates.values() if p >= 80)
         band_60_80 = sum(1 for p in candidates.values() if 60 <= p < 80)
@@ -89,53 +104,45 @@ def build_html(best):
         grand_appeared += appeared
         grand_passed   += passed
 
-        pass_rate = f"{round(passed/appeared*100,1)}%" if appeared else "—"
-
-        # Per-candidate table rows
-        rows = ""
-        for email, pct in sorted(candidates.items(), key=lambda x: -x[1]):
-            if pct >= 80:
-                badge = "<span style='color:#16a34a;font-weight:bold'>✅ PASS</span>"
-            elif pct >= 60:
-                badge = "<span style='color:#d97706;font-weight:bold'>⚠️ Near</span>"
-            else:
-                badge = "<span style='color:#dc2626;font-weight:bold'>❌ FAIL</span>"
-            rows += f"""
-            <tr>
-                <td style='padding:6px 12px;border-bottom:1px solid #e5e7eb'>{email}</td>
-                <td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center'>{pct}%</td>
-                <td style='padding:6px 12px;border-bottom:1px solid #e5e7eb;text-align:center'>{badge}</td>
-            </tr>"""
+        pass_rate  = f"{round(passed/appeared*100,1)}%" if appeared else "—"
+        mailto_url = build_mailto(level, meta, candidates)
 
         module_blocks += f"""
         <div style='margin:28px 0;padding:20px;background:#f8fafc;border-radius:8px;border-left:4px solid #1e3a5f'>
-            <h2 style='margin:0 0 4px 0;color:#1e3a5f;font-size:1.1rem'>{meta['label']}</h2>
-            <a href='{meta['link']}' style='font-size:0.8rem;color:#2563eb'>{meta['link']}</a>
+            <div style='display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px'>
+                <div>
+                    <h2 style='margin:0 0 4px 0;color:#1e3a5f;font-size:1.1rem'>{meta['label']}</h2>
+                    <a href='{meta['link']}' style='font-size:0.8rem;color:#2563eb'>{meta['link']}</a>
+                </div>
+                <a href='{mailto_url}'
+                   style='background:#1e3a5f;color:white;padding:8px 16px;border-radius:6px;
+                          text-decoration:none;font-size:0.85rem;font-weight:600;white-space:nowrap'>
+                    📧 View Candidate Details
+                </a>
+            </div>
 
             <div style='display:flex;gap:16px;flex-wrap:wrap;margin:16px 0'>
-                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:120px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
+                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
                     <div style='font-size:1.8rem;font-weight:700;color:#1e3a5f'>{appeared}</div>
                     <div style='font-size:0.75rem;color:#6b7280'>Appeared</div>
                 </div>
-                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:120px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
+                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
                     <div style='font-size:1.8rem;font-weight:700;color:#16a34a'>{passed}</div>
                     <div style='font-size:0.75rem;color:#6b7280'>Passed (≥80%)</div>
                 </div>
-                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:120px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
+                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
                     <div style='font-size:1.8rem;font-weight:700;color:#d97706'>{band_60_80}</div>
                     <div style='font-size:0.75rem;color:#6b7280'>Score 60–80%</div>
                 </div>
-                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:120px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
+                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
                     <div style='font-size:1.8rem;font-weight:700;color:#dc2626'>{below_60}</div>
                     <div style='font-size:0.75rem;color:#6b7280'>Score &lt;60%</div>
                 </div>
-                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:120px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
+                <div style='background:white;border-radius:6px;padding:12px 20px;min-width:100px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,0.08)'>
                     <div style='font-size:1.8rem;font-weight:700;color:#7c3aed'>{pass_rate}</div>
                     <div style='font-size:0.75rem;color:#6b7280'>Pass Rate</div>
                 </div>
             </div>
-
-            {'<table style="width:100%;border-collapse:collapse;background:white;border-radius:6px;overflow:hidden"><thead><tr style="background:#1e3a5f;color:white"><th style="padding:8px 12px;text-align:left">Email</th><th style="padding:8px 12px;text-align:center">Best Score</th><th style="padding:8px 12px;text-align:center">Status</th></tr></thead><tbody>' + rows + '</tbody></table>' if rows else '<p style="color:#9ca3af;font-style:italic">No attempts yet.</p>'}
         </div>"""
 
     overall_pass_rate = f"{round(grand_passed/grand_appeared*100,1)}%" if grand_appeared else "—"
@@ -170,24 +177,53 @@ def build_html(best):
 
 # ── SEND EMAIL ────────────────────────────────────────────────────
 def send_email(html):
-    print(f"Preparing email...")
     print(f"From: {GMAIL_USER}")
     print(f"To: {RECIPIENTS}")
+    print(f"Recipients count: {len(RECIPIENTS)}")
+
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Axiontech Assessment Report — {datetime.now().strftime('%d %b %Y')}"
     msg["From"]    = GMAIL_USER
     msg["To"]      = ", ".join(RECIPIENTS)
     msg.attach(MIMEText(html, "html"))
-    print("Connecting to Gmail SMTP...")
-    with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
-        print("Logging in...")
-        s.login(GMAIL_USER, GMAIL_PASSWORD)
-        print("Sending...")
-        s.sendmail(GMAIL_USER, RECIPIENTS, msg.as_string())
-    print(f"✅ Report sent successfully to {RECIPIENTS}")
+
+    # Try SMTP_SSL port 465 first, fallback to STARTTLS port 587
+    sent = False
+    try:
+        print("Trying SMTP_SSL port 465...")
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as s:
+            s.login(GMAIL_USER, GMAIL_PASSWORD)
+            s.sendmail(GMAIL_USER, RECIPIENTS, msg.as_string())
+        print(f"✅ Sent via port 465 to {RECIPIENTS}")
+        sent = True
+    except Exception as e1:
+        print(f"Port 465 failed: {e1}")
+
+    if not sent:
+        try:
+            print("Trying STARTTLS port 587...")
+            with smtplib.SMTP("smtp.gmail.com", 587) as s:
+                s.ehlo()
+                s.starttls()
+                s.login(GMAIL_USER, GMAIL_PASSWORD)
+                s.sendmail(GMAIL_USER, RECIPIENTS, msg.as_string())
+            print(f"✅ Sent via port 587 to {RECIPIENTS}")
+            sent = True
+        except Exception as e2:
+            print(f"Port 587 failed: {e2}")
+            raise RuntimeError(f"Both SMTP methods failed. 465: {e1} | 587: {e2}")
 
 # ── MAIN ──────────────────────────────────────────────────────────
 if __name__ == "__main__":
+    # Verify all env vars present
+    print("=== ENV CHECK ===")
+    print(f"SUPABASE_URL set: {bool(SUPABASE_URL)}")
+    print(f"SUPABASE_KEY set: {bool(SUPABASE_KEY)}")
+    print(f"GMAIL_USER: {GMAIL_USER}")
+    print(f"GMAIL_APP_PASSWORD set: {bool(GMAIL_PASSWORD)} (length={len(GMAIL_PASSWORD)})")
+    print(f"REPORT_RECIPIENTS: {RECIPIENTS}")
+    print("=================")
+
     print("Fetching final assessment data...")
     data = fetch_finals()
     print(f"Found {len(data)} records across finals")
